@@ -22,8 +22,8 @@ const positions = [];
 const colors = [];
 const indices = [];
 
-const thetaSteps = 80;
-const phiSteps = 80;
+const thetaSteps = 40;
+const phiSteps = 40;
 
 for (let i = 0; i <= thetaSteps; i++) {
   const theta = ((i / thetaSteps) * Math.PI) / 2; // θ: 0 ~ π
@@ -31,9 +31,9 @@ for (let i = 0; i <= thetaSteps; i++) {
   for (let j = 0; j <= phiSteps; j++) {
     const phi = (j / phiSteps) * 2 * Math.PI; // φ: 0 ~ 2π
 
-    const gain = Math.pow(Math.cos(theta), 10); // 天線增益
+    const gain = Math.pow(Math.cos(theta), 6); // 天線增益
     const r = 2 * gain;
-
+    console.log(`Theta: ${theta}, Phi: ${phi}, Gain: ${gain}, Radius: ${r}`);
     const x = r * Math.sin(theta) * Math.cos(phi);
     const y = r * Math.sin(theta) * Math.sin(phi);
     const z = r * Math.cos(theta);
@@ -41,7 +41,7 @@ for (let i = 0; i <= thetaSteps; i++) {
     positions.push(x, y, z);
 
     // 顏色可以根據 gain 設定 (例如用 HSL 映射)
-    const color = new THREE.Color().setHSL(gain, 0.9, 0.5);
+    const color = new THREE.Color().setHSL(gain, 1, 0.5);
     colors.push(color.r, color.g, color.b);
   }
 }
@@ -74,13 +74,14 @@ const material = new THREE.MeshStandardMaterial({
   flatShading: false,
   transparent: true,
   opacity: 0.8,
+  // wireframe: true,
 });
 
 const mesh = new THREE.Mesh(geometry, material);
 scene.add(mesh);
 
 // Light
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(5, 5, 5);
 scene.add(ambientLight, directionalLight);
@@ -120,7 +121,10 @@ const tick = () => {
 
   // 可加點動態效果
   // mesh.rotation.y = elapsedTime * 0.1;
-  mesh.scale.set(1 + Math.sin(elapsedTime) * 0.02, 1 + Math.sin(elapsedTime) * 0.02, 1 + Math.sin(elapsedTime) * 0.02);
+  // 轉圈
+  mesh.rotation.x = Math.sin(elapsedTime) * 0.5;
+  mesh.rotation.y = Math.cos(elapsedTime) * 0.5;
+  // mesh.scale.set(1 + Math.sin(elapsedTime) * 0.02, 1 + Math.sin(elapsedTime) * 0.02, 1 + Math.sin(elapsedTime) * 0.02);
 
   controls.update();
   renderer.render(scene, camera);
