@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Antenna Pattern</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #1a1a1a;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #container {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #controls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .control-group {
+      margin-bottom: 10px;
+    }
+
+    label {
+      display: inline-block;
+      width: 120px;
+    }
+
+    input[type="range"] {
+      width: 150px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container"></div>
+  <div id="controls">
+    <div class="control-group">
+      <label>Pattern Width:</label>
+      <input type="range" id="widthSlider" min="0.5" max="3" step="0.1" value="2">
+      <span id="widthValue">2.0</span>
+    </div>
+    <div class="control-group">
+      <label>Pattern Length:</label>
+      <input type="range" id="lengthSlider" min="2" max="8" step="0.2" value="5">
+      <span id="lengthValue">5.0</span>
+    </div>
+    <div class="control-group">
+      <label>Beamwidth:</label>
+      <input type="range" id="beamSlider" min="0.5" max="2" step="0.1" value="1">
+      <span id="beamValue">1.0</span>
+    </div>
+    <div style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+      Mouse: Rotate | Wheel: Zoom
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    let scene, camera, renderer, antennaPattern;
+    let controls = {
+      width: 2,
+      length: 5,
+      beamwidth: 1
+    };
+
+    function init() {
+      // Scene setup
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1a1a);
+
+      // Camera setup
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(5, 3, 5);
+      camera.lookAt(0, 0, 0);
+
+      // Renderer setup
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.getElementById('container').appendChild(renderer.domElement);
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(10, 10, 5);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+
+      // Create coordinate axes for reference
+      createAxes();
+
+      // Create antenna pattern
+      createAntennaPattern();
+
+      // Mouse controls
+      setupMouseControls();
+
+      // UI controls
+      setupUIControls();
+
+      // Animation loop
+      animate();
+    }
+
+    function createAxes() {
+      const axesHelper = new THREE.AxesHelper(3);
+      scene.add(axesHelper);
+
+      // Add labels for axes
+      const loader = new THREE.FontLoader();
+      // Since we can't load external fonts easily, we'll use basic geometry for reference
+    }
+
+    function createAntennaPattern() {
+      // Remove existing pattern
+      if (antennaPattern) {
+        scene.remove(antennaPattern);
+      }
+
+      // Create geometry for antenna pattern using parametric equations
+      const geometry = new THREE.ParametricGeometry(antennaPatternFunction, 100, 32);
+
+      // Create color array for gradient effect
+      const colors = [];
+      const positions = geometry.attributes.position.array;
+
+      for (let i = 0; i < positions.length; i += 3) {
+        const x = positions[i];
+        const y = positions[i + 1];
+        const z = positions[i + 2];
+
+        // Calculate distance from origin for color mapping
+        const distance = Math.sqrt(x * x + y * y + z * z);
+        const normalizedDistance = Math.min(distance / controls.length, 1);
+
+        // Create color gradient from blue to red
+        const hue = (1 - normalizedDistance) * 0.67; // Blue to red
+        const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+
+        colors.push(color.r, color.g, color.b);
+      }
+
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+      // Create material with vertex colors
+      const material = new THREE.MeshLambertMaterial({
+        vertexColors: true,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.8
+      });
+
+      antennaPattern = new THREE.Mesh(geometry, material);
+      scene.add(antennaPattern);
+    }
+
+    function antennaPatternFunction(u, v, target) {
+      // u: 0 to 1 (azimuth parameter)
+      // v: 0 to 1 (elevation parameter)
+
+      // Only create half pattern (0 to π instead of 0 to 2π)
+      const phi = u * Math.PI; // Azimuth: 0 to π (half pattern)
+      const theta = v * Math.PI; // Elevation: 0 to π
+
+      // Antenna pattern function - creates elongated oval shape
+      // This simulates a typical directional antenna pattern
+      const cosTheta = Math.cos(theta);
+      const sinTheta = Math.sin(theta);
+      const cosPhi = Math.cos(phi);
+      const sinPhi = Math.sin(phi);
+
+      // Pattern intensity based on angle
+      // Main lobe in +X direction, side lobes suppressed
+      let intensity = Math.max(0, cosTheta) * Math.pow(Math.max(0, cosPhi), controls.beamwidth);
+
+      // Add some side lobe structure
+      intensity += 0.1 * Math.sin(4 * phi) * Math.sin(2 * theta);
+      intensity = Math.max(0.05, intensity); // Minimum intensity
+
+      // Scale the pattern
+      const r = intensity * controls.length;
+
+      // Convert to Cartesian coordinates
+      const x = r * sinTheta * cosPhi;
+      const y = r * sinTheta * sinPhi * controls.width / controls.length; // Flatten in Y
+      const z = r * cosTheta * controls.width / controls.length; // Flatten in Z
+
+      target.set(x, y, z);
+    }
+
+    function setupMouseControls() {
+      let isMouseDown = false;
+      let mouseX = 0, mouseY = 0;
+      let targetRotationY = 0, targetRotationX = 0;
+      let rotationY = 0, rotationX = 0;
+
+      renderer.domElement.addEventListener('mousedown', (event) => {
+        isMouseDown = true;
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+      });
+
+      renderer.domElement.addEventListener('mouseup', () => {
+        isMouseDown = false;
+      });
+
+      renderer.domElement.addEventListener('mousemove', (event) => {
+        if (isMouseDown) {
+          const deltaX = event.clientX - mouseX;
+          const deltaY = event.clientY - mouseY;
+
+          targetRotationY += deltaX * 0.01;
+          targetRotationX += deltaY * 0.01;
+
+          mouseX = event.clientX;
+          mouseY = event.clientY;
+        }
+      });
+
+      renderer.domElement.addEventListener('wheel', (event) => {
+        camera.position.multiplyScalar(event.deltaY > 0 ? 1.1 : 0.9);
+        event.preventDefault();
+      });
+
+      // Smooth rotation animation
+      function updateRotation() {
+        rotationY += (targetRotationY - rotationY) * 0.1;
+        rotationX += (targetRotationX - rotationX) * 0.1;
+
+        if (antennaPattern) {
+          antennaPattern.rotation.y = rotationY;
+          antennaPattern.rotation.x = rotationX;
+        }
+
+        requestAnimationFrame(updateRotation);
+      }
+      updateRotation();
+    }
+
+    function setupUIControls() {
+      const widthSlider = document.getElementById('widthSlider');
+      const lengthSlider = document.getElementById('lengthSlider');
+      const beamSlider = document.getElementById('beamSlider');
+
+      const widthValue = document.getElementById('widthValue');
+      const lengthValue = document.getElementById('lengthValue');
+      const beamValue = document.getElementById('beamValue');
+
+      widthSlider.addEventListener('input', (e) => {
+        controls.width = parseFloat(e.target.value);
+        widthValue.textContent = controls.width.toFixed(1);
+        createAntennaPattern();
+      });
+
+      lengthSlider.addEventListener('input', (e) => {
+        controls.length = parseFloat(e.target.value);
+        lengthValue.textContent = controls.length.toFixed(1);
+        createAntennaPattern();
+      });
+
+      beamSlider.addEventListener('input', (e) => {
+        controls.beamwidth = parseFloat(e.target.value);
+        beamValue.textContent = controls.beamwidth.toFixed(1);
+        createAntennaPattern();
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Optional: slow auto-rotation
+      // if (antennaPattern) {
+      //     antennaPattern.rotation.y += 0.005;
+      // }
+
+      renderer.render(scene, camera);
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Initialize the application
+    init();
+  </script>
+</body>
+
+</html>
