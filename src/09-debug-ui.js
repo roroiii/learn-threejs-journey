@@ -1,3 +1,5 @@
+import gsap from 'gsap';
+import GUI from 'lil-gui';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
@@ -10,14 +12,53 @@ const canvas = document.querySelector('canvas.webgl');
 // Scene
 const scene = new THREE.Scene();
 
+// Debug
+const debugObject = {};
+debugObject.color = '#672dff';
+
+debugObject.spin = () => {
+  gsap.to(mesh.rotation, { y: mesh.rotation.y + Math.PI * 2 });
+};
+
+debugObject.subdivision = 2;
 /**
  * Object
  */
 const geometry = new THREE.BoxGeometry(1, 1, 1, 2, 2, 2);
-const material = new THREE.MeshBasicMaterial({ color: '#ff0000' });
+const material = new THREE.MeshBasicMaterial({ color: debugObject.color });
 const mesh = new THREE.Mesh(geometry, material);
 scene.add(mesh);
 
+const gui = new GUI();
+
+gui.add(mesh.position, 'y').min(-3).max(3).step(0.01).name('elevation');
+
+gui.add(material, 'wireframe');
+
+gui.add(mesh, 'visible');
+
+gui.addColor(debugObject, 'color').onChange(() => {
+  material.color.set(debugObject.color);
+});
+
+gui.add(debugObject, 'spin');
+
+gui
+  .add(debugObject, 'subdivision')
+  .min(1)
+  .max(20)
+  .step(1)
+  .onFinishChange(() => {
+    mesh.geometry.dispose(); // dispose the old geometry 釋放舊的幾何體資源
+    mesh.geometry = new THREE.BoxGeometry(
+      1,
+      1,
+      1,
+      debugObject.subdivision,
+      debugObject.subdivision,
+      debugObject.subdivision
+    );
+  });
 /**
  * Sizes
  */
