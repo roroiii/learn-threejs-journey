@@ -24,4 +24,5 @@ pnpm run build
 
 ### 09-debug-ui-final
 
+Added debug folder and hide Debug UI function.
 ![09-debug-ui-final](./src/09-debug-ui/09-debug-ui-final.png)
