@@ -11,6 +11,9 @@ importers:
       gsap:
         specifier: ~3.12.7
         version: 3.12.7
+      lil-gui:
+        specifier: ^0.20.0
+        version: 0.20.0
       three:
         specifier: ^0.174.0
         version: 0.174.0
@@ -316,6 +319,9 @@ packages:
     resolution: {integrity: sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==}
     engines: {node: '>=0.12.0'}
 
+  lil-gui@0.20.0:
+    resolution: {integrity: sha512-k7Ipr0ztqslMA2XvM5z5ZaWhxQtnEOwJBfI/hmSuRh6q4iMG9L0boqqrnZSzBR1jzyJ28OMl47l65ILzRe1TdA==}
+
   micromatch@4.0.8:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
@@ -594,6 +600,8 @@ snapshots:
   gsap@3.12.7: {}
 
   is-number@7.0.0: {}
+
+  lil-gui@0.20.0: {}
 
   micromatch@4.0.8:
     dependencies:
