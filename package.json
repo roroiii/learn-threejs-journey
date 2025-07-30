@@ -12,7 +12,7 @@
     "vite-plugin-restart": "^0.4.2"
   },
   "dependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.45.1",
+    "gsap": "~3.12.7",
     "three": "^0.174.0"
   }
 }

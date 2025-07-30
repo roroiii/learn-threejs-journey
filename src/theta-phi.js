@@ -74,7 +74,7 @@ const material = new THREE.MeshStandardMaterial({
   flatShading: false,
   transparent: true,
   opacity: 0.8,
-  // wireframe: true,
+  wireframe: true,
 });
 
 const mesh = new THREE.Mesh(geometry, material);
@@ -122,8 +122,8 @@ const tick = () => {
   // 可加點動態效果
   // mesh.rotation.y = elapsedTime * 0.1;
   // 轉圈
-  mesh.rotation.x = Math.sin(elapsedTime) * 0.5;
-  mesh.rotation.y = Math.cos(elapsedTime) * 0.5;
+  // mesh.rotation.x = Math.sin(elapsedTime) * 0.5;
+  // mesh.rotation.y = Math.cos(elapsedTime) * 0.5;
   // mesh.scale.set(1 + Math.sin(elapsedTime) * 0.02, 1 + Math.sin(elapsedTime) * 0.02, 1 + Math.sin(elapsedTime) * 0.02);
 
   controls.update();
