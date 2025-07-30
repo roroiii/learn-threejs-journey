@@ -20,4 +20,8 @@ pnpm run build
 
 ### 09-debug-ui
 
-![09-debug-ui](09-debug-ui.png)
+![09-debug-ui](./src/09-debug-ui/09-debug-ui.png)
+
+### 09-debug-ui-final
+
+![09-debug-ui-final](./src/09-debug-ui/09-debug-ui-final.png)
