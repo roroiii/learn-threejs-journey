@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>專業級 RF Beam Pattern 分析工具</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0d1117, #161b22);
+      font-family: 'Consolas', 'Monaco', monospace;
+      color: #e6edf3;
+      overflow: hidden;
+    }
+
+    .main-container {
+      display: flex;
+      height: 100vh;
+    }
+
+    .left-section {
+      flex: 1;
+      position: relative;
+      border-right: 1px solid #30363d;
+    }
+
+    .right-section {
+      width: 420px;
+      background: #0d1117;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      z-index: 1000;
+      background: rgba(13, 17, 23, 0.95);
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+      backdrop-filter: blur(8px);
+      min-width: 280px;
+    }
+
+    .control-title {
+      color: #58a6ff;
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #21262d;
+      padding-bottom: 6px;
+    }
+
+    .control-group {
+      margin-bottom: 12px;
+    }
+
+    .control-label {
+      display: block;
+      font-size: 11px;
+      color: #8b949e;
+      margin-bottom: 4px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-slider {
+      flex: 1;
+      height: 4px;
+      background: #21262d;
+      border-radius: 2px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .control-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #58a6ff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .control-value {
+      color: #7dd3fc;
+      font-size: 11px;
+      font-weight: bold;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .phase-section {
+      flex: 1;
+      padding: 20px;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .info-section {
+      padding: 20px;
+    }
+
+    .section-title {
+      color: #f0883e;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .phase-canvas {
+      width: 100%;
+      height: 280px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #0d1117;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .info-item {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .info-label {
+      font-size: 10px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 13px;
+      color: #58a6ff;
+      font-weight: bold;
+    }
+
+    .performance-meter {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .meter-bar {
+      height: 6px;
+      background: #21262d;
+      border-radius: 3px;
+      margin: 6px 0;
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .gain-fill {
+      background: linear-gradient(90deg, #238636, #2ea043);
+    }
+
+    .efficiency-fill {
+      background: linear-gradient(90deg, #1f6feb, #58a6ff);
+    }
+
+    .bandwidth-fill {
+      background: linear-gradient(90deg, #a2a9b1, #f0f6fc);
+    }
+
+    #beamCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main-container">
+    <div class="left-section">
+      <div class="control-panel">
+        <div class="control-title">天線參數控制</div>
+
+        <div class="control-group">
+          <label class="control-label">工作頻率</label>
+          <div class="control-row">
+            <input type="range" class="control-slider" id="frequency" min="1.0" max="6.0" step="0.1" value="2.4">
+            <span class="control-value" id="freqValue">2.4 GHz</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">天線類型</label>
+          <div class="control-row">
+            <select id="antennaType"
+              style="flex: 1; background: #21262d; color: #e6edf3; border: 1px solid #30363d; padding: 4px; border-radius: 4px; font-size: 11px;">
+              <option value="patch">微帶天線</option>
+              <option value="horn">喇叭天線</option>
+              <option value="dipole">偶極天線</option>
+              <option value="yagi">八木天線</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">主瓣寬度 (E-plane)</label>
+          <div class="control-row">
+            <input type="range" class="control-slider" id="eBeamwidth" min="15" max="120" step="5" value="60">
+            <span class="control-value" id="eBeamValue">60°</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">主瓣寬度 (H-plane)</label>
+          <div class="control-row">
+            <input type="range" class="control-slider" id="hBeamwidth" min="15" max="120" step="5" value="80">
+            <span class="control-value" id="hBeamValue">80°</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">最大增益</label>
+          <div class="control-row">
+            <input type="range" class="control-slider" id="maxGain" min="2" max="25" step="0.5" value="12">
+            <span class="control-value" id="gainValue">12.0 dBi</span>
+          </div>
+        </div>
+      </div>
+
+      <canvas id="beamCanvas"></canvas>
+    </div>
+
+    <div class="right-section">
+      <div class="phase-section">
+        <div class="section-title">Phase Distribution</div>
+        <canvas class="phase-canvas" id="phaseCanvas"></canvas>
+      </div>
+
+      <div class="info-section">
+        <div class="section-title">天線性能指標</div>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">頻率</div>
+            <div class="info-value" id="displayFreq">2.4 GHz</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">波長</div>
+            <div class="info-value" id="displayWavelength">12.5 cm</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">方向性</div>
+            <div class="info-value" id="displayDirectivity">12.0 dBi</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">HPBW</div>
+            <div class="info-value" id="displayHPBW">60° × 80°</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">前後比</div>
+            <div class="info-value" id="displayFBR">18.5 dB</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">旁瓣電平</div>
+            <div class="info-value" id="displaySLL">-15.2 dB</div>
+          </div>
+        </div>
+
+        <div class="performance-meter">
+          <div class="info-label">增益效率</div>
+          <div class="meter-bar">
+            <div class="meter-fill gain-fill" id="gainMeter"></div>
+          </div>
+
+          <div class="info-label">輻射效率</div>
+          <div class="meter-bar">
+            <div class="meter-fill efficiency-fill" id="efficiencyMeter"></div>
+          </div>
+
+          <div class="info-label">頻寬效率</div>
+          <div class="meter-bar">
+            <div class="meter-fill bandwidth-fill" id="bandwidthMeter"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // 全域變數
+    let scene, camera, renderer, beamMesh, wireframeMesh;
+    let phaseCanvas, phaseCtx;
+    let isMouseDown = false, mouseX = 0, mouseY = 0;
+
+    // 天線參數
+    let antennaParams = {
+      frequency: 2.4,
+      type: 'patch',
+      eBeamwidth: 60,
+      hBeamwidth: 80,
+      maxGain: 12.0
+    };
+
+    // 天線類型預設值
+    const antennaPresets = {
+      patch: { eBeam: 60, hBeam: 80, gain: 8.5 },
+      horn: { eBeam: 30, hBeam: 35, gain: 15.0 },
+      dipole: { eBeam: 78, hBeam: 360, gain: 2.15 },
+      yagi: { eBeam: 45, hBeam: 60, gain: 12.0 }
+    };
+
+    // 初始化 Three.js
+    function initThreeJS() {
+      const canvas = document.getElementById('beamCanvas');
+      const container = canvas.parentElement;
+
+      // 場景設置
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0e15);
+      scene.fog = new THREE.Fog(0x0a0e15, 8, 20);
+
+      // 相機設置
+      camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
+      camera.position.set(6, 4, 6);
+      camera.lookAt(0, 0, 0);
+
+      // 渲染器設置
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true,
+        alpha: true
+      });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+
+      // 燈光設置
+      setupLighting();
+
+      // 坐標系和參考線
+      setupCoordinateSystem();
+
+      // 控制設置
+      setupControls();
+
+      // 創建輻射場型
+      createRadiationPattern();
+
+      // 動畫循環
+      animate();
+    }
+
+    // 燈光設置
+    function setupLighting() {
+      // 環境光
+      const ambientLight = new THREE.AmbientLight(0x404080, 0.4);
+      scene.add(ambientLight);
+
+      // 主光源
+      const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      mainLight.position.set(10, 10, 5);
+      mainLight.castShadow = true;
+      mainLight.shadow.mapSize.width = 2048;
+      mainLight.shadow.mapSize.height = 2048;
+      scene.add(mainLight);
+
+      // 補光
+      const fillLight = new THREE.DirectionalLight(0x4080ff, 0.3);
+      fillLight.position.set(-5, 3, -5);
+      scene.add(fillLight);
+
+      // 頂光
+      const topLight = new THREE.DirectionalLight(0xff8040, 0.2);
+      topLight.position.set(0, 8, 0);
+      scene.add(topLight);
+    }
+
+    // 坐標系設置
+    function setupCoordinateSystem() {
+      // 主軸線
+      const axesHelper = new THREE.AxesHelper(4);
+      scene.add(axesHelper);
+
+      // 球面參考線
+      const sphereGeometry = new THREE.SphereGeometry(3, 16, 8);
+      const sphereMaterial = new THREE.MeshBasicMaterial({
+        color: 0x404040,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.15
+      });
+      const sphereWireframe = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      scene.add(sphereWireframe);
+
+      // 地面網格
+      const gridHelper = new THREE.GridHelper(8, 20, 0x404040, 0x202020);
+      gridHelper.position.y = -0.1;
+      scene.add(gridHelper);
+
+      // 角度標記
+      addAngleMarkers();
+    }
+
+    // 角度標記
+    function addAngleMarkers() {
+      const loader = new THREE.FontLoader();
+      // 簡化版本，不載入字體，用基本幾何標記
+
+      for (let angle = 0; angle <= 360; angle += 30) {
+        const radians = (angle * Math.PI) / 180;
+        const radius = 3.2;
+        const x = radius * Math.cos(radians);
+        const z = radius * Math.sin(radians);
+
+        const markerGeometry = new THREE.SphereGeometry(0.02, 8, 8);
+        const markerMaterial = new THREE.MeshBasicMaterial({ color: 0x58a6ff });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.set(x, 0, z);
+        scene.add(marker);
+      }
+    }
+
+    // 滑鼠控制
+    function setupControls() {
+      const canvas = renderer.domElement;
+
+      canvas.addEventListener('mousedown', onMouseDown);
+      canvas.addEventListener('mousemove', onMouseMove);
+      canvas.addEventListener('mouseup', onMouseUp);
+      canvas.addEventListener('wheel', onMouseWheel);
+    }
+
+    function onMouseDown(event) {
+      isMouseDown = true;
+      mouseX = event.clientX;
+      mouseY = event.clientY;
+    }
+
+    function onMouseMove(event) {
+      if (!isMouseDown) return;
+
+      const deltaX = event.clientX - mouseX;
+      const deltaY = event.clientY - mouseY;
+
+      // 球面坐標轉換
+      const radius = camera.position.length();
+      const theta = Math.atan2(camera.position.x, camera.position.z);
+      const phi = Math.acos(camera.position.y / radius);
+
+      const newTheta = theta + deltaX * 0.008;
+      const newPhi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + deltaY * 0.008));
+
+      camera.position.x = radius * Math.sin(newPhi) * Math.sin(newTheta);
+      camera.position.y = radius * Math.cos(newPhi);
+      camera.position.z = radius * Math.sin(newPhi) * Math.cos(newTheta);
+      camera.lookAt(0, 0, 0);
+
+      mouseX = event.clientX;
+      mouseY = event.clientY;
+    }
+
+    function onMouseUp() {
+      isMouseDown = false;
+    }
+
+    function onMouseWheel(event) {
+      const scale = event.deltaY > 0 ? 1.05 : 0.95;
+      const newLength = camera.position.length() * scale;
+      if (newLength > 2 && newLength < 20) {
+        camera.position.multiplyScalar(scale);
+      }
+    }
+
+    // 創建輻射場型
+    function createRadiationPattern() {
+      // 移除舊的網格
+      if (beamMesh) scene.remove(beamMesh);
+      if (wireframeMesh) scene.remove(wireframeMesh);
+
+      const geometry = new THREE.BufferGeometry();
+      const vertices = [];
+      const colors = [];
+      const normals = [];
+      const indices = [];
+
+      const thetaSegments = 64;  // 增加解析度
+      const phiSegments = 128;
+
+      // 生成頂點
+      for (let i = 0; i <= thetaSegments; i++) {
+        const theta = (i / thetaSegments) * Math.PI;
+
+        for (let j = 0; j <= phiSegments; j++) {
+          const phi = (j / phiSegments) * Math.PI * 2;
+
+          // 計算輻射強度
+          const pattern = calculateAntennaPattern(theta, phi);
+          const radius = Math.max(0.1, pattern.magnitude);
+
+          // 球坐標轉換
+          const x = radius * Math.sin(theta) * Math.cos(phi);
+          const y = radius * Math.cos(theta);
+          const z = radius * Math.sin(theta) * Math.sin(phi);
+
+          vertices.push(x, y, z);
+
+          // 法向量
+          const normal = new THREE.Vector3(x, y, z).normalize();
+          normals.push(normal.x, normal.y, normal.z);
+
+          // 顏色映射
+          const color = getPatternColor(pattern.dB);
+          colors.push(color.r, color.g, color.b);
+        }
+      }
+
+      // 生成三角面
+      for (let i = 0; i < thetaSegments; i++) {
+        for (let j = 0; j < phiSegments; j++) {
+          const a = i * (phiSegments + 1) + j;
+          const b = a + phiSegments + 1;
+          const c = a + 1;
+          const d = b + 1;
+
+          indices.push(a, b, c);
+          indices.push(b, d, c);
+        }
+      }
+
+      geometry.setIndex(indices);
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+      // 主要輻射面
+      const material = new THREE.MeshPhongMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+        shininess: 30
+      });
+
+      beamMesh = new THREE.Mesh(geometry, material);
+      scene.add(beamMesh);
+
+      // 線框版本
+      const wireframeMaterial = new THREE.MeshBasicMaterial({
+        color: 0x58a6ff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.2
+      });
+
+      wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
+      scene.add(wireframeMesh);
+    }
+
+    // 計算天線方向圖
+    function calculateAntennaPattern(theta, phi) {
+      const thetaDeg = theta * 180 / Math.PI;
+      const phiDeg = phi * 180 / Math.PI;
+
+      let ePattern = 1.0;
+      let hPattern = 1.0;
+
+      // E-plane 場型 (通常在 phi=0° 和 phi=180°)
+      const eBeamRad = antennaParams.eBeamwidth * Math.PI / 180;
+      const hBeamRad = antennaParams.hBeamwidth * Math.PI / 180;
+
+      // 根據天線類型計算不同的場型
+      switch (antennaParams.type) {
+        case 'patch':
+          ePattern = Math.pow(Math.cos(theta * Math.cos(phi)), 2) *
+            Math.exp(-(theta * theta) / (eBeamRad * eBeamRad / 4));
+          hPattern = Math.exp(-(theta * theta * Math.sin(phi) * Math.sin(phi)) /
+            (hBeamRad * hBeamRad / 4));
+          break;
+
+        case 'horn':
+          ePattern = Math.pow(Math.sinc(theta * Math.cos(phi) / eBeamRad), 2);
+          hPattern = Math.pow(Math.sinc(theta * Math.sin(phi) / hBeamRad), 2);
+          break;
+
+        case 'dipole':
+          ePattern = Math.pow(Math.sin(theta), 2);
+          hPattern = 1.0;
+          break;
+
+        case 'yagi':
+          const mainLobe = Math.exp(-(theta * theta) / (eBeamRad * eBeamRad / 4));
+          const sideLobe = 0.1 * Math.cos(theta * 3);
+          ePattern = Math.max(mainLobe, Math.abs(sideLobe));
+          hPattern = Math.exp(-(theta * theta * Math.sin(phi) * Math.sin(phi)) /
+            (hBeamRad * hBeamRad / 4));
+          break;
+      }
+
+      const totalPattern = ePattern * hPattern;
+      const dB = 10 * Math.log10(Math.max(totalPattern, 1e-6)) + antennaParams.maxGain;
+
+      return {
+        magnitude: Math.max(0.1, Math.pow(10, Math.max(dB, -40) / 20) * 0.3),
+        dB: dB
+      };
+    }
+
+    // Math.sinc 函數
+    Math.sinc = function (x) {
+      return x === 0 ? 1 : Math.sin(x) / x;
+    };
+
+    // 顏色映射
+    function getPatternColor(dB) {
+      const normalizedDB = Math.max(-40, Math.min(dB, antennaParams.maxGain));
+      const ratio = (normalizedDB + 40) / (antennaParams.maxGain + 40);
+
+      const color = new THREE.Color();
+
+      if (ratio > 0.8) {
+        color.setRGB(1, 0.9, 0); // 金黃色 - 主瓣
+      } else if (ratio > 0.6) {
+        color.setRGB(1, 0.5, 0); // 橙色
+      } else if (ratio > 0.4) {
+        color.setRGB(0.8, 0.2, 0.2); // 紅色
+      } else if (ratio > 0.2) {
+        color.setRGB(0.4, 0.2, 0.8); // 紫色
+      } else {
+        color.setRGB(0.1, 0.3, 0.8); // 深藍色 - 低輻射區
+      }
+
+      return color;
+    }
+
+    // 繪製相位分布
+    function drawPhaseDistribution() {
+      const canvas = document.getElementById('phaseCanvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.fillStyle = '#0d1117';
+      ctx.fillRect(0, 0, width, height);
+
+      const imageData = ctx.createImageData(width, height);
+      const data = imageData.data;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const theta = (y / height) * Math.PI;
+          const phi = (x / width) * 2 * Math.PI;
+
+          // 計算相位
+          const phase = calculatePhase(theta, phi);
+          const magnitude = calculateAntennaPattern(theta, phi).magnitude;
+
+          // 相位到顏色的映射
+          const normalizedPhase = (phase + Math.PI) / (2 * Math.PI);
+          const hue = normalizedPhase * 360;
+          const saturation = Math.min(1, magnitude * 2);
+          const lightness = 0.3 + magnitude * 0.4;
+
+          const rgb = hslToRgb(hue / 360, saturation, lightness);
+
+          const idx = (y * width + x) * 4;
+          data[idx] = rgb[0];     // R
+          data[idx + 1] = rgb[1]; // G
+          data[idx + 2] = rgb[2]; // B
+          data[idx + 3] = 255;    // A
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      // 添加網格和標籤
+      drawPhaseGrid(ctx, width, height);
+    }
+
+    // 計算相位
+    function calculatePhase(theta, phi) {
+      const k = 2 * Math.PI * antennaParams.frequency / 30; // 簡化的波數
+
+      switch (antennaParams.type) {
+        case 'patch':
+          return k * 0.05 * Math.sin(theta) * Math.cos(phi);
+
+        case 'horn':
+          return k * 0.1 * (Math.sin(theta) * Math.cos(phi) +
+            Math.sin(theta) * Math.sin(phi) * 0.5);
+
+        case 'dipole':
+          return 0; // 偶極天線相位相對均勻
+
+        case 'yagi':
+          return k * 0.15 * Math.sin(theta) * Math.cos(phi) +
+            Math.sin(phi * 2) * 0.3;
+
+        default:
+          return 0;
+      }
+    }
+
+    // 繪製相位網格
+    function drawPhaseGrid(ctx, width, height) {
+      ctx.strokeStyle = 'rgba(88, 166, 255, 0.3)';
+      ctx.lineWidth = 1;
+
+      // 垂直線 (phi)
+      for (let i = 0; i <= 8; i++) {
+        const x = (i / 8) * width;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+
+      // 水平線 (theta)
+      for (let i = 0; i <= 4; i++) {
+        const y = (i / 4) * height;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // 標籤
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px Consolas';
+      ctx.fillText('0°', 5, height - 5);
+      ctx.fillText('90°', 5, height * 0.75);
+      ctx.fillText('180°', 5, 15);
+      ctx.fillText('φ', width - 15, height - 5);
+      ctx.fillText('θ', 5, 15);
+    }
+
+    // HSL 轉 RGB
+    function hslToRgb(h, s, l) {
+      let r, g, b;
+
+      if (s === 0) {
+        r = g = b = l;
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1 / 6) return p + (q - p) * 6 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+          return p;
+        };
+
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+      }
+
+      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+
+    // 更新控制介面
+    function setupControlListeners() {
+      const controls = {
+        frequency: document.getElementById('frequency'),
+        antennaType: document.getElementById('antennaType'),
+        eBeamwidth: document.getElementById('eBeamwidth'),
+        hBeamwidth: document.getElementById('hBeamwidth'),
+        maxGain: document.getElementById('maxGain')
+      };
+
+      const displays = {
+        frequency: document.getElementById('freqValue'),
+        eBeamwidth: document.getElementById('eBeamValue'),
+        hBeamwidth: document.getElementById('hBeamValue'),
+        maxGain: document.getElementById('gainValue')
+      };
+
+      // 頻率控制
+      controls.frequency.addEventListener('input', (e) => {
+        antennaParams.frequency = parseFloat(e.target.value);
+        displays.frequency.textContent = `${antennaParams.frequency} GHz`;
+        updateAll();
+      });
+
+      // 天線類型
+      controls.antennaType.addEventListener('change', (e) => {
+        antennaParams.type = e.target.value;
+        const preset = antennaPresets[antennaParams.type];
+
+        // 更新預設值
+        antennaParams.eBeamwidth = preset.eBeam;
+        antennaParams.hBeamwidth = preset.hBeam;
+        antennaParams.maxGain = preset.gain;
+
+        // 更新UI
+        controls.eBeamwidth.value = preset.eBeam;
+        controls.hBeamwidth.value = preset.hBeam;
+        controls.maxGain.value = preset.gain;
+
+        displays.eBeamwidth.textContent = `${preset.eBeam}°`;
+        displays.hBeamwidth.textContent = `${preset.hBeam}°`;
+        displays.maxGain.textContent = `${preset.gain} dBi`;
+
+        updateAll();
+      });
+
+      // E-plane 波束寬度
+      controls.eBeamwidth.addEventListener('input', (e) => {
+        antennaParams.eBeamwidth = parseInt(e.target.value);
+        displays.eBeamwidth.textContent = `${antennaParams.eBeamwidth}°`;
+        updateAll();
+      });
+
+      // H-plane 波束寬度
+      controls.hBeamwidth.addEventListener('input', (e) => {
+        antennaParams.hBeamwidth = parseInt(e.target.value);
+        displays.hBeamwidth.textContent = `${antennaParams.hBeamwidth}°`;
+        updateAll();
+      });
+
+      // 最大增益
+      controls.maxGain.addEventListener('input', (e) => {
+        antennaParams.maxGain = parseFloat(e.target.value);
+        displays.maxGain.textContent = `${antennaParams.maxGain} dBi`;
+        updateAll();
+      });
+    }
+
+    // 更新所有顯示
+    function updateAll() {
+      createRadiationPattern();
+      drawPhaseDistribution();
+      updateInfoPanel();
+    }
+
+    // 更新資訊面板
+    function updateInfoPanel() {
+      const wavelength = (29.98 / antennaParams.frequency).toFixed(1);
+      const fbRatio = calculateFrontToBackRatio();
+      const sidelobeLevel = calculateSidelobeLevel();
+
+      // 基本參數
+      document.getElementById('displayFreq').textContent = `${antennaParams.frequency} GHz`;
+      document.getElementById('displayWavelength').textContent = `${wavelength} cm`;
+      document.getElementById('displayDirectivity').textContent = `${antennaParams.maxGain} dBi`;
+      document.getElementById('displayHPBW').textContent =
+        `${antennaParams.eBeamwidth}° × ${antennaParams.hBeamwidth}°`;
+      document.getElementById('displayFBR').textContent = `${fbRatio.toFixed(1)} dB`;
+      document.getElementById('displaySLL').textContent = `${sidelobeLevel.toFixed(1)} dB`;
+
+      // 性能指標
+      updatePerformanceMeters();
+    }
+
+    // 計算前後比
+    function calculateFrontToBackRatio() {
+      const frontGain = calculateAntennaPattern(0, 0).dB;
+      const backGain = calculateAntennaPattern(Math.PI, 0).dB;
+      return frontGain - backGain;
+    }
+
+    // 計算旁瓣電平
+    function calculateSidelobeLevel() {
+      let maxSidelobe = -Infinity;
+      const mainBeamLimit = Math.max(antennaParams.eBeamwidth, antennaParams.hBeamwidth) * Math.PI / 180;
+
+      for (let theta = mainBeamLimit; theta <= Math.PI; theta += 0.1) {
+        for (let phi = 0; phi < 2 * Math.PI; phi += 0.2) {
+          const pattern = calculateAntennaPattern(theta, phi);
+          if (pattern.dB > maxSidelobe) {
+            maxSidelobe = pattern.dB;
+          }
+        }
+      }
+
+      return maxSidelobe - antennaParams.maxGain;
+    }
+
+    // 更新性能計量器
+    function updatePerformanceMeters() {
+      const gainEfficiency = Math.min(100, (antennaParams.maxGain / 25) * 100);
+      const radiationEfficiency = calculateRadiationEfficiency();
+      const bandwidthEfficiency = calculateBandwidthEfficiency();
+
+      document.getElementById('gainMeter').style.width = `${gainEfficiency}%`;
+      document.getElementById('efficiencyMeter').style.width = `${radiationEfficiency}%`;
+      document.getElementById('bandwidthMeter').style.width = `${bandwidthEfficiency}%`;
+    }
+
+    // 計算輻射效率
+    function calculateRadiationEfficiency() {
+      let efficiency = 85; // 基準效率
+
+      switch (antennaParams.type) {
+        case 'patch':
+          efficiency = 80 + (antennaParams.maxGain / 25) * 15;
+          break;
+        case 'horn':
+          efficiency = 90 + (antennaParams.maxGain / 25) * 8;
+          break;
+        case 'dipole':
+          efficiency = 95;
+          break;
+        case 'yagi':
+          efficiency = 75 + (antennaParams.maxGain / 25) * 20;
+          break;
+      }
+
+      return Math.min(100, efficiency);
+    }
+
+    // 計算頻寬效率
+    function calculateBandwidthEfficiency() {
+      let bandwidth = 50; // 基準頻寬效率
+
+      switch (antennaParams.type) {
+        case 'patch':
+          bandwidth = 30 + (10 / antennaParams.frequency) * 20;
+          break;
+        case 'horn':
+          bandwidth = 70 + (antennaParams.frequency / 10) * 25;
+          break;
+        case 'dipole':
+          bandwidth = 60;
+          break;
+        case 'yagi':
+          bandwidth = 40 - (antennaParams.maxGain / 25) * 15;
+          break;
+      }
+
+      return Math.max(10, Math.min(100, bandwidth));
+    }
+
+    // 動畫循環
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // 輕微旋轉效果
+      if (beamMesh) {
+        beamMesh.rotation.y += 0.002;
+      }
+      if (wireframeMesh) {
+        wireframeMesh.rotation.y += 0.002;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // 視窗大小調整
+    function handleResize() {
+      const canvas = document.getElementById('beamCanvas');
+      const container = canvas.parentElement;
+
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+
+      // 重繪相位圖
+      setTimeout(() => {
+        drawPhaseDistribution();
+      }, 100);
+    }
+
+    // 初始化所有功能
+    function initialize() {
+      initThreeJS();
+      setupControlListeners();
+      drawPhaseDistribution();
+      updateInfoPanel();
+
+      window.addEventListener('resize', handleResize);
+
+      // 延遲初始化以確保Canvas正確載入
+      setTimeout(() => {
+        drawPhaseDistribution();
+      }, 500);
+    }
+
+    // 等待頁面載入完成
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+      initialize();
+    }
+  </script>
+</body>
+
+</html>
