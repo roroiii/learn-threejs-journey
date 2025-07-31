@@ -28,63 +28,82 @@ const antennaParams = {
   gain: 8, // dBi
   polarization: 'vertical',
   wireframe: false,
-  opacity: 0.85,
+  opacity: 0.9,
   autoRotate: false,
-  colorScheme: 'thermal',
+  colorScheme: 'rainbow', // 可選 'rainbow', 'thermal', 'plasma', 'electric', 'fire'
 };
 
 /**
- * 顏色方案
+ * 顏色方案 - 參考範例檔案的明亮效果
  */
 const colorSchemes = {
   rainbow: (intensity) => {
-    // 更鮮豔的彩虹色彩
-    const hue = (1 - intensity) * 0.85; // 從紫紅到紅
-    const saturation = 0.9 + intensity * 0.1; // 高飽和度
-    const lightness = 0.3 + intensity * 0.4; // 適中亮度
+    // 使用HSL創造明亮不受光線影響的顏色
+    const hue = intensity * 0.7; // 從紅(0)到紫(0.83) - 完整光譜
+    const saturation = 1.0; // 最高飽和度
+    const lightness = 0.3; // 固定亮度確保鮮豔
     return new THREE.Color().setHSL(hue, saturation, lightness);
   },
   thermal: (intensity) => {
-    // 熱力圖配色
-    if (intensity < 0.2) {
-      return new THREE.Color().lerpColors(
-        new THREE.Color(0x000033), // 深藍
-        new THREE.Color(0x0066ff), // 亮藍
-        intensity * 5
-      );
-    } else if (intensity < 0.4) {
-      return new THREE.Color().lerpColors(
-        new THREE.Color(0x0066ff), // 亮藍
-        new THREE.Color(0x00ffff), // 青
-        (intensity - 0.2) * 5
-      );
-    } else if (intensity < 0.6) {
-      return new THREE.Color().lerpColors(
-        new THREE.Color(0x00ffff), // 青
-        new THREE.Color(0x00ff00), // 綠
-        (intensity - 0.4) * 5
-      );
-    } else if (intensity < 0.8) {
-      return new THREE.Color().lerpColors(
-        new THREE.Color(0x00ff00), // 綠
-        new THREE.Color(0xffff00), // 黃
-        (intensity - 0.6) * 5
-      );
+    // 熱力圖：黑->藍->青->綠->黃->紅->白
+    let hue, saturation, lightness;
+    if (intensity < 0.25) {
+      // 黑到藍
+      hue = 0.67; // 藍色
+      saturation = 1.0;
+      lightness = intensity * 2; // 0 到 0.5
+    } else if (intensity < 0.5) {
+      // 藍到青
+      hue = 0.67 - ((intensity - 0.25) * 0.17) / 0.25; // 藍(0.67)到青(0.5)
+      saturation = 1.0;
+      lightness = 0.5;
+    } else if (intensity < 0.75) {
+      // 青到黃
+      hue = 0.5 - ((intensity - 0.5) * 0.33) / 0.25; // 青(0.5)到黃(0.17)
+      saturation = 1.0;
+      lightness = 0.5;
     } else {
-      return new THREE.Color().lerpColors(
-        new THREE.Color(0xffff00), // 黃
-        new THREE.Color(0xff0000), // 紅
-        (intensity - 0.8) * 5
-      );
+      // 黃到紅
+      hue = 0.17 - ((intensity - 0.75) * 0.17) / 0.25; // 黃(0.17)到紅(0)
+      saturation = 1.0;
+      lightness = 0.5 + (intensity - 0.75) * 2; // 0.5到1
     }
+    return new THREE.Color().setHSL(hue, saturation, lightness);
   },
   plasma: (intensity) => {
-    // 等離子效果
-    const angle = intensity * Math.PI * 2;
-    const r = 0.5 + 0.5 * Math.sin(angle);
-    const g = 0.5 + 0.5 * Math.sin(angle + (Math.PI * 2) / 3);
-    const b = 0.5 + 0.5 * Math.sin(angle + (Math.PI * 4) / 3);
-    return new THREE.Color(Math.pow(r, 0.8), Math.pow(g, 0.8), Math.pow(b, 0.8));
+    // 等離子效果：紫->藍->青->綠
+    const hue = 0.83 - intensity * 0.5; // 從紫(0.83)到綠(0.33)
+    const saturation = 1.0;
+    const lightness = 0.3 + intensity * 0.4; // 動態亮度
+    return new THREE.Color().setHSL(hue, saturation, lightness);
+  },
+  electric: (intensity) => {
+    // 電氣效果：深藍->藍->青->白
+    const hue = 0.67 - intensity * 0.17; // 藍到青
+    const saturation = 1.0 - intensity * 0.3; // 逐漸去飽和
+    const lightness = 0.2 + intensity * 0.6; // 從暗到亮
+    return new THREE.Color().setHSL(hue, saturation, lightness);
+  },
+  fire: (intensity) => {
+    // 火焰效果：黑->紅->橙->黃->白
+    let hue, saturation, lightness;
+    if (intensity < 0.33) {
+      // 黑到紅
+      hue = 0; // 純紅
+      saturation = 1.0;
+      lightness = intensity * 1.5; // 0到0.5
+    } else if (intensity < 0.66) {
+      // 紅到橙
+      hue = ((intensity - 0.33) * 0.08) / 0.33; // 紅(0)到橙(0.08)
+      saturation = 1.0;
+      lightness = 0.5;
+    } else {
+      // 橙到黃到白
+      hue = 0.08 + ((intensity - 0.66) * 0.09) / 0.34; // 橙(0.08)到黃(0.17)
+      saturation = 1.0 - ((intensity - 0.66) * 0.5) / 0.34; // 逐漸去飽和
+      lightness = 0.5 + ((intensity - 0.66) * 0.5) / 0.34; // 變亮
+    }
+    return new THREE.Color().setHSL(hue, saturation, lightness);
   },
 };
 
@@ -236,16 +255,12 @@ function createBeamPatternMesh() {
 
   const geometry = createBeamPatternGeometry();
 
-  // 主要材質 - 增強發光效果
-  const material = new THREE.MeshPhongMaterial({
+  // 主要材質 - 使用不受光線影響的材質，參考範例檔案
+  const material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     transparent: true,
     opacity: antennaParams.opacity,
     side: THREE.DoubleSide,
-    shininess: 300,
-    specular: 0x888888,
-    emissive: 0x111111, // 添加自發光
-    emissiveIntensity: 0.2,
   });
 
   // 線框材質
@@ -349,7 +364,7 @@ function setupGUI() {
     });
 
   visualFolder
-    .add(antennaParams, 'colorScheme', ['rainbow', 'thermal', 'plasma'])
+    .add(antennaParams, 'colorScheme', ['rainbow', 'thermal', 'plasma', 'electric', 'fire'])
     .name('顏色方案')
     .onChange(updateBeamPattern);
 
@@ -399,19 +414,9 @@ function setupGUI() {
  * 場景設置
  */
 function setupScene() {
-  // 添加燈光
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+  // 簡化燈光設置 - 減少光線影響
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
   scene.add(ambientLight);
-
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(10, 10, 5);
-  directionalLight.castShadow = true;
-  scene.add(directionalLight);
-
-  // 添加點光源增加視覺效果
-  const pointLight = new THREE.PointLight(0x00ffff, 0.3, 20);
-  pointLight.position.set(0, 8, 0);
-  scene.add(pointLight);
 
   // 添加座標軸
   const axesHelper = new THREE.AxesHelper(4);
