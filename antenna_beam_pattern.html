@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 天線輻射圖案</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: inline-block;
+            width: 120px;
+            font-size: 12px;
+        }
+        
+        input[type="range"] {
+            width: 150px;
+        }
+        
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <div class="control-group">
+                <label>主瓣寬度:</label>
+                <input type="range" id="mainBeamWidth" min="0.1" max="2" step="0.1" value="0.5">
+                <span id="mainBeamWidthValue">0.5</span>
+            </div>
+            <div class="control-group">
+                <label>旁瓣衰減:</label>
+                <input type="range" id="sideLobeLevel" min="0.01" max="0.5" step="0.01" value="0.1">
+                <span id="sidelobeLevelValue">0.1</span>
+            </div>
+            <div class="control-group">
+                <label>方向角:</label>
+                <input type="range" id="beamDirection" min="0" max="360" step="10" value="0">
+                <span id="beamDirectionValue">0°</span>
+            </div>
+            <div class="control-group">
+                <label>仰角:</label>
+                <input type="range" id="elevationAngle" min="-90" max="90" step="10" value="0">
+                <span id="elevationValue">0°</span>
+            </div>
+            <div class="control-group">
+                <button onclick="toggleWireframe()">切換線框</button>
+                <button onclick="toggleAnimation()">切換旋轉</button>
+                <button onclick="resetView()">重設視角</button>
+            </div>
+        </div>
+        
+        <div id="info">
+            <div>滑鼠拖拽: 旋轉視角</div>
+            <div>滾輪: 縮放</div>
+            <div>右鍵拖拽: 平移</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, beamMesh, wireframeMesh;
+        let isWireframe = false;
+        let isAnimating = false;
+        let animationId;
+
+        // 天線參數
+        let antennaParams = {
+            mainBeamWidth: 0.5,
+            sideLobeLevel: 0.1,
+            beamDirection: 0,
+            elevationAngle: 0
+        };
+
+        function init() {
+            // 場景設置
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x001122);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // 相機位置
+            camera.position.set(5, 5, 5);
+            camera.lookAt(0, 0, 0);
+
+            // 添加燈光
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+
+            // 添加座標軸
+            const axesHelper = new THREE.AxesHelper(3);
+            scene.add(axesHelper);
+
+            // 添加網格
+            const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
+            scene.add(gridHelper);
+
+            // 創建輻射圖案
+            createBeamPattern();
+
+            // 添加控制器
+            addControls();
+            setupEventListeners();
+
+            // 開始渲染
+            animate();
+        }
+
+        function createBeamPattern() {
+            // 移除舊的網格
+            if (beamMesh) {
+                scene.remove(beamMesh);
+                beamMesh.geometry.dispose();
+                beamMesh.material.dispose();
+            }
+            if (wireframeMesh) {
+                scene.remove(wireframeMesh);
+                wireframeMesh.geometry.dispose();
+                wireframeMesh.material.dispose();
+            }
+
+            // 創建自定義幾何體
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const colors = [];
+            const indices = [];
+
+            // 球座標參數
+            const phiSegments = 64; // 方位角分割數
+            const thetaSegments = 32; // 仰角分割數
+
+            // 生成頂點
+            for (let i = 0; i <= thetaSegments; i++) {
+                const theta = (i / thetaSegments) * Math.PI; // 0 到 π (仰角)
+                
+                for (let j = 0; j <= phiSegments; j++) {
+                    const phi = (j / phiSegments) * Math.PI * 2; // 0 到 2π (方位角)
+
+                    // 計算輻射強度 (使用典型的天線方向圖函數)
+                    const intensity = calculateAntennaPattern(theta, phi);
+                    
+                    // 將球座標轉換為笛卡爾座標
+                    const radius = intensity * 2; // 放大顯示
+                    const x = radius * Math.sin(theta) * Math.cos(phi);
+                    const y = radius * Math.cos(theta);
+                    const z = radius * Math.sin(theta) * Math.sin(phi);
+
+                    vertices.push(x, y, z);
+
+                    // 根據強度設置顏色 (紅色到藍色)
+                    const normalizedIntensity = intensity;
+                    const r = normalizedIntensity;
+                    const g = normalizedIntensity * 0.5;
+                    const b = 1 - normalizedIntensity;
+                    colors.push(r, g, b);
+                }
+            }
+
+            // 生成三角形索引
+            for (let i = 0; i < thetaSegments; i++) {
+                for (let j = 0; j < phiSegments; j++) {
+                    const a = i * (phiSegments + 1) + j;
+                    const b = a + phiSegments + 1;
+                    const c = a + 1;
+                    const d = b + 1;
+
+                    // 兩個三角形組成一個四邊形
+                    indices.push(a, b, c);
+                    indices.push(b, d, c);
+                }
+            }
+
+            // 設置幾何體屬性
+            geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geometry.computeVertexNormals();
+
+            // 創建材質
+            const material = new THREE.MeshPhongMaterial({
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+
+            const wireframeMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            });
+
+            // 創建網格
+            beamMesh = new THREE.Mesh(geometry.clone(), material);
+            wireframeMesh = new THREE.Mesh(geometry.clone(), wireframeMaterial);
+
+            scene.add(beamMesh);
+            if (isWireframe) {
+                scene.add(wireframeMesh);
+            }
+        }
+
+        function calculateAntennaPattern(theta, phi) {
+            // 典型的偶極天線方向圖
+            const { mainBeamWidth, sideLobeLevel, beamDirection, elevationAngle } = antennaParams;
+
+            // 轉換角度
+            const beamDirRad = (beamDirection * Math.PI) / 180;
+            const elevRad = (elevationAngle * Math.PI) / 180;
+
+            // 計算相對於主波束方向的角度
+            const relativeTheta = theta - (Math.PI/2 - elevRad);
+            const relativePhi = phi - beamDirRad;
+
+            // 主波束方向圖 (使用 cos^n 函數)
+            const n = 2 / (mainBeamWidth * mainBeamWidth); // 控制波束寬度
+            let intensity = Math.pow(Math.abs(Math.cos(relativeTheta/2)), n) * 
+                           Math.pow(Math.abs(Math.cos(relativePhi/2)), n/2);
+
+            // 添加旁瓣
+            const sideLobePattern = sideLobeLevel * (1 + 0.5 * Math.sin(4 * theta) * Math.cos(6 * phi));
+            intensity = Math.max(intensity, sideLobePattern);
+
+            // 限制範圍 [0, 1]
+            return Math.max(0, Math.min(1, intensity));
+        }
+
+        function addControls() {
+            // 滑鼠控制
+            let mouseDown = false;
+            let mouseButton = -1;
+            let mouseX = 0;
+            let mouseY = 0;
+
+            renderer.domElement.addEventListener('mousedown', (event) => {
+                mouseDown = true;
+                mouseButton = event.button;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+
+            renderer.domElement.addEventListener('mouseup', () => {
+                mouseDown = false;
+            });
+
+            renderer.domElement.addEventListener('mousemove', (event) => {
+                if (!mouseDown) return;
+
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+
+                if (mouseButton === 0) { // 左鍵 - 旋轉
+                    const spherical = new THREE.Spherical();
+                    spherical.setFromVector3(camera.position);
+                    spherical.theta -= deltaX * 0.01;
+                    spherical.phi += deltaY * 0.01;
+                    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                    camera.position.setFromSpherical(spherical);
+                    camera.lookAt(0, 0, 0);
+                } else if (mouseButton === 2) { // 右鍵 - 平移
+                    const distance = camera.position.length();
+                    camera.translateX(-deltaX * distance * 0.001);
+                    camera.translateY(deltaY * distance * 0.001);
+                }
+
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+
+            // 滾輪縮放
+            renderer.domElement.addEventListener('wheel', (event) => {
+                const scale = event.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+            });
+
+            // 禁用右鍵選單
+            renderer.domElement.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+            });
+        }
+
+        function setupEventListeners() {
+            // 參數控制
+            document.getElementById('mainBeamWidth').addEventListener('input', (e) => {
+                antennaParams.mainBeamWidth = parseFloat(e.target.value);
+                document.getElementById('mainBeamWidthValue').textContent = e.target.value;
+                createBeamPattern();
+            });
+
+            document.getElementById('sideLobeLevel').addEventListener('input', (e) => {
+                antennaParams.sideLobeLevel = parseFloat(e.target.value);
+                document.getElementById('sidelobeLevelValue').textContent = e.target.value;
+                createBeamPattern();
+            });
+
+            document.getElementById('beamDirection').addEventListener('input', (e) => {
+                antennaParams.beamDirection = parseFloat(e.target.value);
+                document.getElementById('beamDirectionValue').textContent = e.target.value + '°';
+                createBeamPattern();
+            });
+
+            document.getElementById('elevationAngle').addEventListener('input', (e) => {
+                antennaParams.elevationAngle = parseFloat(e.target.value);
+                document.getElementById('elevationValue').textContent = e.target.value + '°';
+                createBeamPattern();
+            });
+
+            // 視窗調整
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            if (isWireframe) {
+                scene.add(wireframeMesh);
+                beamMesh.material.opacity = 0.3;
+            } else {
+                scene.remove(wireframeMesh);
+                beamMesh.material.opacity = 0.8;
+            }
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+        }
+
+        function resetView() {
+            camera.position.set(5, 5, 5);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            if (isAnimating && beamMesh) {
+                beamMesh.rotation.y += 0.01;
+                if (wireframeMesh) {
+                    wireframeMesh.rotation.y += 0.01;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // 初始化
+        init();
+    </script>
+</body>
+</html>
